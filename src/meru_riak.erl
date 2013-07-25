@@ -1,4 +1,5 @@
 -module(meru_riak).
+-compile({inline, [call_transaction/2]}).
 
 -export([
     start_link/1,
