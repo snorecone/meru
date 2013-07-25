@@ -7,10 +7,6 @@
     delete/2
 ]).
 
--record(state, {
-    connection
-}).
-
 %%
 %% API.
 %%
