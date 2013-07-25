@@ -18,5 +18,6 @@ start_link(Args) ->
 %%
 init([]) ->
     {ok, {{one_for_one, 10, 10}, [
-        {meru_riak_sup, {meru_riak_sup, start_link, []}, permanent, infinity, supervisor, [meru_riak_sup]}
+        {meru_riak_sup, {meru_riak_sup, start_link, []},
+            permanent, infinity, supervisor, [meru_riak_sup]}
     ]}}.

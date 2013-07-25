@@ -1,4 +1,4 @@
 # meru
 
-An erlang orm for riak and elasticsearch
+An erlang orm for riak
 

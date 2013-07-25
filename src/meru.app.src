@@ -1,6 +1,6 @@
 {application, meru,
     [
-        {description, "An Erlang orm for riak and elasticsearch."},
+        {description, "An Erlang orm for riak."},
         {vsn, "0.0.1"},
         {modules, []},
         {registered,[]},
@@ -8,8 +8,7 @@
             kernel,
             stdlib,
             riakc,
-            poolboy,
-            elasticsearch
+            poolboy
         ]},
         {included_applications, []},
         {mod, {meru_app, []}},
@@ -19,12 +18,6 @@
                 {riak_port, 8087},
                 {riak_pool_size, 10},
                 {riak_pool_max_overflow, 15}
-            ]},
-            {elasticsearch, [
-                {host, "localhost"},
-                {port, 9200},
-                {pool_size, 10},
-                {max_pool_overflow, 15}
             ]}
         ]}
     ]}.

@@ -17,9 +17,12 @@
 }).
 
 parse_transform(Forms, Opts) ->
+    dbg:tracer(),
+    dbg:tpl(?MODULE,x),
+    dbg:p(all,[c]),
     Context = parse_trans:initial_context(Forms, Opts),
     State = parse_trans:do_inspect(fun inspect/4, #state{}, Forms, Context),
-    Result = parse_trans:revert(add_get_function(Forms, State, Context)),
+    Result = parse_trans:revert(export_funs(add_get_function(Forms, State, Context), State, Context)),
     parse_trans:optionally_pretty_print(Result, Opts, Context),
     Result.
 
@@ -44,3 +47,7 @@ add_get_function(Forms, #state{ record = RecordName }, Context) ->
                 [{tuple, 1, [{atom, 1, RecordName},
                              {var, 1, 'Key'}]}]}]},
     parse_trans:do_insert_forms(above, [Form], Forms, Context).
+
+export_funs(Forms, _State, Context) ->
+    Get = [{attribute, 1, export, [{get, 1}]}],
+    parse_trans:do_insert_forms(above, Get, Forms, Context).

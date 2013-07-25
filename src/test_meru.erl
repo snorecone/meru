@@ -3,7 +3,11 @@
 
 -meru_record([hello]).
 
+-export([
+    test/0
+]).
 
+test() -> ok.
 % test_meru:get(<<"key">>).
 % test_meru:delete(<<"key">>).
 
