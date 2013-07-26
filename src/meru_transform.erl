@@ -68,18 +68,56 @@ inspect(_, _, _, Acc) ->
 add_funs(Forms, State, Context) ->
     lists:foldl(fun (FunName, Acc) ->
         add_fun(FunName, Acc, State, Context)
-    end, Forms, [record_to_proplist, proplist_to_record, get]).
+    end, Forms, [record_to_proplist, proplist_to_record, get, put]).
 
-add_fun(get, Forms, #state{ record = _RecordName, bucket = BucketName, keyfun = KeyFunName }, Context) ->
-    Form = [{function, 1, get, 1, [{clause, 1,
-                [{var, 1, 'Key'}],
-                [],
-                [{call, 1,
-                    {remote, 1, {atom, 1, meru_riak}, {atom, 1, get}},
-                        [BucketName, {call, 1, {atom, 1, KeyFunName}, [{var, 1, 'Key'}]}]}]}]}],
+add_fun(get, Forms, #state{ bucket = BucketName, keyfun = KeyFunName }, Context) ->
+    Form = [{function, 1, get, 1, [{clause,1,
+        [{var,1,'Key'}],
+        [],
+        [{'case',2,
+          {call,2,
+              {remote,2,{atom,2,meru_riak},{atom,2,get}},
+              [BucketName,
+               {call,2,{atom,2,KeyFunName},[{var,2,'Key'}]}]},
+          [{clause,3,
+               [{tuple,3,[{atom,3,error},{var,3,'Error'}]}],
+               [],
+               [{tuple,3,[{atom,3,error},{var,3,'Error'}]}]},
+           {clause,4,
+               [{tuple,4,[{atom,4,ok},{var,4,'RObj'}]}],
+               [],
+               [{tuple,5,
+                    [{atom,5,ok},
+                     {call,5,
+                         {atom,5,proplist_to_record},
+                         [{call,5,
+                              {atom,5,binary_to_term},
+                              [{call,5,
+                                   {remote,5,
+                                       {atom,5,riakc_obj},
+                                       {atom,5,get_value}},
+                                   [{var,5,'RObj'}]}]}]}]}]}]}]}]}],
     parse_trans:do_insert_forms(above, Form, Forms, Context);
-% add_fun(put, Forms, #state{ record = RecordName, bucket = BucketName, keyfun = KeyFunName, mergefun = MergeFunName }, Context) ->
-%     Forms;
+add_fun(put, Forms, #state{ bucket = BucketName, keyfun = KeyFunName }, Context) ->
+    Form = [{function, 1, put, 1, [{clause,1,
+         [{var,1,'Record'}],
+         [],
+         [{match,1,
+                 {var,1,'Key'},
+                 {call,1,{atom,1,KeyFunName},[{var,1,'Record'}]}},
+          {match,1,
+                 {atom,1,ok},
+                 {call,1,
+                       {remote,1,{atom,1,meru_riak},{atom,1,put}},
+                       [{call,1,
+                              {remote,1,{atom,1,riakc_obj},{atom,1,new}},
+                              [BucketName,
+                               {var,1,'Key'},
+                               {call,1,
+                                     {atom,1,record_to_proplist},
+                                     [{var,1,'Record'}]}]}]}},
+          {tuple,1,[{atom,1,ok},{var,1,'Key'}]}]}]}],
+    parse_trans:do_insert_forms(above, Form, Forms, Context);
 % add_fun(put_merge_2, Forms, #state{ record = RecordName, bucket = BucketName, keyfun = KeyFunName, mergefun = MergeFunName }, Context) ->
 %     Forms;
 % add_fun(put_merge_3, Forms, #state{ record = RecordName, bucket = BucketName, keyfun = KeyFunName, mergefun = MergeFunName }, Context) ->
@@ -140,6 +178,6 @@ add_fun(proplist_to_record, Forms, #state{ record = RecordName, records = Record
 
 export_funs(Forms, _State, Context) ->
     % Exports = [{attribute, 1, export, [{get, 1}, {put, 1}, {put_merge, 2}, {put_merge, 3}, {delete, 1}]}],
-    Exports = [{attribute, 1, export, [{get, 1}, {record_to_proplist, 1}, {proplist_to_record, 1}]}],
+    Exports = [{attribute, 1, export, [{get, 1}, {put, 1}, {record_to_proplist, 1}, {proplist_to_record, 1}]}],
     parse_trans:do_insert_forms(above, Exports, Forms, Context).
 

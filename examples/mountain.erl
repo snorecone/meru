@@ -65,7 +65,7 @@ test() ->
 
 make_key(#mountain{ name = Name, range = Range }) ->
     make_key({Name, Range});
-make_key({Name, Range}) -> binary_to_term({Name, Range});
+make_key({Name, Range}) -> term_to_binary({Name, Range});
 make_key(Key) when is_binary(Key) -> Key.
 
 % merge(OldMountain, NewMountain, MergeOpts) ->
