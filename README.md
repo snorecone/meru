@@ -1,6 +1,6 @@
 # meru
 
-Add methods to your erlang modules that map to riak objects.
+[UNDER CONSTRUCTION] Add methods to your erlang modules that map to riak objects.
 
 ## installation
 
