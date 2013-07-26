@@ -21,3 +21,6 @@ get_deps:
 
 run:
 	erl -boot start_sasl -sname meru -s meru -pa ebin -pa deps/*/ebin
+
+ast:
+	@script/funs_to_ast.escript

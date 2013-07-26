@@ -55,8 +55,8 @@ test() ->
     {ok, Oly} = mountain:get({<<"Olympus Mons">>, <<"Amazonis">>}),
     
     % deleting a deleted record should return not found
-    {ok, ChimboKey}   = mountain:delete({<<"Chimborazo">>, <<"Cordillera Occidental">>}),
-    {error, notfound} = mountain:delete(ChimboKey),
+    {ok, ChimboKey} = mountain:delete({<<"Chimborazo">>, <<"Cordillera Occidental">>}),
+    {ok, ChimboKey} = mountain:delete(ChimboKey),
     {ok, OlyKey} = mountain:delete(OlyKey).
 
 %%
@@ -68,16 +68,18 @@ make_key(#mountain{ name = Name, range = Range }) ->
 make_key({Name, Range}) -> term_to_binary({Name, Range});
 make_key(Key) when is_binary(Key) -> Key.
 
-% merge(OldMountain, NewMountain, MergeOpts) ->
-%     Lakes = case proplists:get_value(lake_merge) of
-%         overwrite -> 
-%             NewMountain#mountain.lakes;
-%         union -> 
-%             lists:usort(OldMountain#mountain.lakes ++ NewMountain#mountain.lakes)
-%     end,
-%     OldMountain#mountain{
-%         lakes = Lakes,
-%         updated_at = calendar:universal_time()
-%     }.
-% 
+merge(notfound, NewMountain, _) ->
+    NewMountain;
+merge(OldMountain, NewMountain, MergeOpts) ->
+    Lakes = case proplists:get_value(lake_merge, MergeOpts) of
+        overwrite -> 
+            NewMountain#mountain.lakes;
+        union -> 
+            lists:usort(OldMountain#mountain.lakes ++ NewMountain#mountain.lakes)
+    end,
+    OldMountain#mountain{
+        lakes = Lakes,
+        updated_at = calendar:universal_time()
+    }.
+
     

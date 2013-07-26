@@ -38,9 +38,11 @@ make_key(#user{ email = Email }) when is_binary(Email) ->
 make_key(Key) when is_binary(Key) -> Key.
 ```
 
-When saved objects are updated, we'll need the merge logic, so next define a merge function that will be passed 3 arguments - the saved record, the new record, and a list of options that you can pass through when updating:
+When saved objects are updated, we'll need the merge logic, so next define a merge function that will be passed 3 arguments - the saved record, the new record, and a list of options that you can pass through when updating. If a record is not found to merge, meru will call the merge function with `notfound` as the first argument:
 
 ```
+merge(notfound, NewUser, _) ->
+  NewUser;
 merge(OldUser, NewUser, Options) ->
   OldUser#user{
     name = NewUser#user.name
@@ -62,9 +64,12 @@ Note: meru serializes records as proplists for storage in riak. It's possible to
 Once your module is compiled, meru will add and export the following functions:
 
 ```
+Record    = ?MODULE:new()
+Record    = ?MODULE:new(Proplist)
 {ok, Obj} = ?MODULE:get(KeyOrRecord) % KeyOrRecord is whatever arguments your keyfun can take
 {ok, Key} = ?MODULE:put(Record)      % meru returns a key
 {ok, Key} = ?MODULE:put_merge(Record, Options) % the riak object is read and merged with your mergefun
+{ok, Key} = ?MODULE:put_merge(Key, Record, Options) % in the case that you want to pass your key explicitly
 {ok, Key} = ?MODULE:delete(KeyOrRecord)
 Proplist  = ?MODULE:record_to_proplist(Record)
 Record    = ?MODULE:proplist_to_record(Proplist)
