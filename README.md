@@ -66,6 +66,8 @@ Once your module is compiled, meru will add and export the following functions:
 {ok, Key} = ?MODULE:put(Record)      % meru returns a key
 {ok, Key} = ?MODULE:put_merge(Record, Options) % the riak object is read and merged with your mergefun
 {ok, Key} = ?MODULE:delete(KeyOrRecord)
+Proplist  = ?MODULE:record_to_proplist(Record)
+Record    = ?MODULE:proplist_to_record(Proplist)
 ```
 
 See the [examples directory](https://github.com/assplecake/meru/tree/master/examples) for complete examples.
