@@ -87,6 +87,12 @@ See the [examples directory](https://github.com/assplecake/meru/tree/master/exam
 {ok, RiakObject} = meru_riak:get(Bucket, Key).
 ```
 
+Note: only the most used functions (`get`, `put`, `delete`) are exported for now with the default timeouts. Use `call/2` to call a `riakc_pb_socket` function directly:
+
+```
+{ok, Keys} = meru_riak:call(list_keys, [Bucket, Timeout]).
+```
+
 ## license
 
 Apache 2.0 http://www.apache.org/licenses/LICENSE-2.0.html
