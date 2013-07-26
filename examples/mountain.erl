@@ -15,8 +15,8 @@
     range,
     planet,
     lakes = [],
-    height,
-    type,
+    height =1,
+    type = "hello",
     created_at,
     updated_at
 }).
