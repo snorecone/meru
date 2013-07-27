@@ -87,10 +87,19 @@ See the [examples directory](https://github.com/assplecake/meru/tree/master/exam
 {ok, RiakObject} = meru_riak:get(Bucket, Key).
 ```
 
-Note: only the most used functions (`get`, `put`, `delete`) are exported for now with the default timeouts. Use `call/2` to call a `riakc_pb_socket` function directly:
+Note: only the most used functions (`get`, `put`, `delete`, `mapred`) are exported for now with the default timeouts. Use `call/2` to call a `riakc_pb_socket` function directly:
 
-```
+```erlang
 {ok, Keys} = meru_riak:call(list_keys, [Bucket, Timeout]).
+```
+
+There's also a transaction function to obtain a pid for multiple operations:
+
+```erlang
+meru_riak:transaction(fun (Pid) ->
+  meru_riak:get(Pid, Bucket, Key),
+  meru_riak:call(Pid, list_keys, [Bucket])
+end).
 ```
 
 ## license
