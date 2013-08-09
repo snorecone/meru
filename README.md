@@ -32,7 +32,7 @@ Define a record that represents the data stored in riak. In this case, we'll use
 
 Now we'll need a key function, which serves to generate the key for the object in riak. Usually we'll define a binary clause to represent the key, as well as a clause that takes the record as an input. 
 
-```
+```erlang
 make_key(#user{ email = Email }) when is_binary(Email) ->
   Email;
 make_key(Key) when is_binary(Key) -> Key.
@@ -40,7 +40,7 @@ make_key(Key) when is_binary(Key) -> Key.
 
 When saved objects are updated, we'll need the merge logic, so next define a merge function that will be passed 3 arguments - the saved record, the new record, and a list of options that you can pass through when updating. If a record is not found to merge, meru will call the merge function with `notfound` as the first argument:
 
-```
+```erlang
 merge(notfound, NewUser, _) ->
   NewUser;
 merge(OldUser, NewUser, Options) ->
