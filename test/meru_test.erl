@@ -39,8 +39,25 @@ meru_test() ->
     {ok, Chimbo2} = mountain:get({<<"Chimborazo">>, <<"Cordillera Occidental">>}),
     {ok, Oly} = mountain:get(OlyKey),
     {ok, Oly} = mountain:get({<<"Olympus Mons">>, <<"Amazonis">>}),
-    
+        
     % deleting a deleted record should return not found
     {ok, ChimboKey} = mountain:delete({<<"Chimborazo">>, <<"Cordillera Occidental">>}),
     {ok, ChimboKey} = mountain:delete(ChimboKey),
-    {ok, OlyKey} = mountain:delete(OlyKey).
+    {ok, OlyKey} = mountain:delete(OlyKey),
+
+    % with transaction
+    meru_riak:transaction(fun (Pid) ->
+        {ok, ChimboKey} = mountain:put(Pid, Chimbo),
+        {ok, OlyKey}    = mountain:put(Pid, Oly),
+        
+        {ok, ChimboKey} = mountain:put_merge(Pid, ChimboKey, ChimboUpdate, [{lake_merge, union}]),
+        
+        {ok, Chimbo2} = mountain:get(Pid, ChimboKey),
+        {ok, Chimbo2} = mountain:get(Pid, {<<"Chimborazo">>, <<"Cordillera Occidental">>}),
+        {ok, Oly} = mountain:get(Pid, OlyKey),
+        {ok, Oly} = mountain:get(Pid, {<<"Olympus Mons">>, <<"Amazonis">>}),
+        
+        {ok, ChimboKey} = mountain:delete(Pid, {<<"Chimborazo">>, <<"Cordillera Occidental">>}),
+        {ok, ChimboKey} = mountain:delete(Pid, ChimboKey),
+        {ok, OlyKey} = mountain:delete(Pid, OlyKey)
+    end).

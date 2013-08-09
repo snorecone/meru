@@ -64,15 +64,25 @@ Note: meru serializes records as proplists for storage in riak. It's possible to
 Once your module is compiled, meru will add and export the following functions:
 
 ```
+%% convenience functions for working with records:
 Record    = ?MODULE:new()
 Record    = ?MODULE:new(Proplist)
+Proplist  = ?MODULE:record_to_proplist(Record)
+Record    = ?MODULE:proplist_to_record(Proplist)
+
+%% riak functions:
 {ok, Obj} = ?MODULE:get(KeyOrRecord) % KeyOrRecord is whatever arguments your keyfun can take
 {ok, Key} = ?MODULE:put(Record)      % meru returns a key
 {ok, Key} = ?MODULE:put_merge(Record, Options) % the riak object is read and merged with your mergefun
 {ok, Key} = ?MODULE:put_merge(Key, Record, Options) % in the case that you want to pass your key explicitly
 {ok, Key} = ?MODULE:delete(KeyOrRecord)
-Proplist  = ?MODULE:record_to_proplist(Record)
-Record    = ?MODULE:proplist_to_record(Proplist)
+
+%% in addition to the above riak function, each function can also take a riakc_pb_socket pid as the first argument:
+{ok, Obj} = ?MODULE:get(Pid, KeyOrRecord)
+{ok, Key} = ?MODULE:put(Pid, Record)
+{ok, Key} = ?MODULE:put_merge(Pid, Record, Options)
+{ok, Key} = ?MODULE:put_merge(Pid, Key, Record, Options)
+{ok, Key} = ?MODULE:delete(Pid, KeyOrRecord)
 ```
 
 See the [examples directory](https://github.com/assplecake/meru/tree/master/examples) for complete examples.
