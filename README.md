@@ -63,7 +63,7 @@ Note: meru serializes records as proplists for storage in riak. It's possible to
 
 Once your module is compiled, meru will add and export the following functions:
 
-```
+```erlang
 %% convenience functions for working with records:
 Record    = ?MODULE:new()
 Record    = ?MODULE:new(Proplist)
@@ -77,7 +77,7 @@ Record    = ?MODULE:proplist_to_record(Proplist)
 {ok, Key} = ?MODULE:put_merge(Key, Record, Options) % in the case that you want to pass your key explicitly
 {ok, Key} = ?MODULE:delete(KeyOrRecord)
 
-%% in addition to the above riak function, each function can also take a riakc_pb_socket pid as the first argument:
+%% in addition to the above riak functions, each function can also take a riakc_pb_socket pid as the first argument:
 {ok, Obj} = ?MODULE:get(Pid, KeyOrRecord)
 {ok, Key} = ?MODULE:put(Pid, Record)
 {ok, Key} = ?MODULE:put_merge(Pid, Record, Options)
