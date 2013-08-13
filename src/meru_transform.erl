@@ -155,7 +155,8 @@ add_fun({put, 2}, Forms, #state{ bucket = BucketName, keyfun = KeyFunName }, Con
                [{clause,60,
                     [{atom,60,ok}],
                     [],
-                    [{tuple,60,[{atom,60,ok},{var,60,'Key'}]}]},
+                    [{tuple,60,
+                         [{atom,60,ok},{var,60,'Key'},{var,60,'Record'}]}]},
                 {clause,61,[{var,61,'Error'}],[],[{var,61,'Error'}]}]}]}]}],
     parse_trans:do_insert_forms(above, Form, Forms, Context);
 add_fun({put_merge, 2}, Forms, _State, Context) ->

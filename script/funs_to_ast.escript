@@ -57,7 +57,7 @@ main([]) ->
         Key = '___KEYFUN___'(Record),
         case '___RIAK___':put(Pid, riakc_obj:new('___BUCKET___', Key, 
             term_to_binary(record_to_proplist(Record)))) of
-            ok -> {ok, Key};
+            ok -> {ok, Key, Record};
             Error -> Error
         end
     end},

@@ -7,7 +7,8 @@
 -meru_mergefun(merge).
 
 -export([
-    test/0
+    test/0,
+    merge/3
 ]).
 
 -record(mountain, {
@@ -39,14 +40,14 @@ test() ->
     },
     
     % put our mountains in the store
-    {ok, ChimboKey} = mountain:put(Chimbo),
-    {ok, OlyKey}    = mountain:put(Oly),
+    {ok, ChimboKey, Chimbo} = mountain:put(Chimbo),
+    {ok, OlyKey, Oly}       = mountain:put(Oly),
     
     % update chimborazo
     ChimboUpdate = #mountain{
         lakes = [<<"Rio Chambo Dam">>]
     },
-    {ok, ChimboKey} = mountain:put_merge(ChimboKey, ChimboUpdate, [{lake_merge, union}]),
+    {ok, ChimboKey, MergedChimbo} = mountain:put_merge(ChimboKey, ChimboUpdate, [{lake_merge, union}]),
     
     % get the mountains out by key or tuple
     {ok, Chimbo2} = mountain:get(ChimboKey),

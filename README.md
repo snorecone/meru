@@ -72,16 +72,16 @@ Record    = ?MODULE:proplist_to_record(Proplist)
 
 %% riak functions:
 {ok, Obj} = ?MODULE:get(KeyOrRecord) % KeyOrRecord is whatever arguments your keyfun can take
-{ok, Key} = ?MODULE:put(Record)      % meru returns a key
-{ok, Key} = ?MODULE:put_merge(Record, Options) % the riak object is read and merged with your mergefun
-{ok, Key} = ?MODULE:put_merge(Key, Record, Options) % in the case that you want to pass your key explicitly
+{ok, Key, Record} = ?MODULE:put(Record)      % meru returns a key and the record
+{ok, Key, MergedRecord} = ?MODULE:put_merge(Record, Options) % the riak object is read and merged with your mergefun
+{ok, Key, MergedRecord} = ?MODULE:put_merge(Key, Record, Options) % in the case that you want to pass your key explicitly
 {ok, Key} = ?MODULE:delete(KeyOrRecord)
 
 %% in addition to the above riak functions, each function can also take a riakc_pb_socket pid as the first argument:
 {ok, Obj} = ?MODULE:get(Pid, KeyOrRecord)
-{ok, Key} = ?MODULE:put(Pid, Record)
-{ok, Key} = ?MODULE:put_merge(Pid, Record, Options)
-{ok, Key} = ?MODULE:put_merge(Pid, Key, Record, Options)
+{ok, Key, Record} = ?MODULE:put(Pid, Record)
+{ok, Key, MergedRecord} = ?MODULE:put_merge(Pid, Record, Options)
+{ok, Key, MergedRecord} = ?MODULE:put_merge(Pid, Key, Record, Options)
 {ok, Key} = ?MODULE:delete(Pid, KeyOrRecord)
 ```
 

@@ -25,14 +25,15 @@ meru_test() ->
     ]),
     
     % put our mountains in the store
-    {ok, ChimboKey} = mountain:put(Chimbo),
-    {ok, OlyKey}    = mountain:put(Oly),
+    {ok, ChimboKey, Chimbo} = mountain:put(Chimbo),
+    {ok, OlyKey, Oly}       = mountain:put(Oly),
     
     % update chimborazo
     ChimboUpdate = mountain:new([
         {lakes, [<<"Rio Chambo Dam">>]}
     ]),
-    {ok, ChimboKey} = mountain:put_merge(ChimboKey, ChimboUpdate, [{lake_merge, union}]),
+    MergedChimbo = mountain:merge(Chimbo, ChimboUpdate, [{lake_merge, union}]),
+    {ok, ChimboKey, MergedChimbo} = mountain:put_merge(ChimboKey, ChimboUpdate, [{lake_merge, union}]),
     
     % get the mountains out by key or tuple
     {ok, Chimbo2} = mountain:get(ChimboKey),
@@ -47,10 +48,10 @@ meru_test() ->
 
     % with transaction
     meru_riak:transaction(fun (Pid) ->
-        {ok, ChimboKey} = mountain:put(Pid, Chimbo),
-        {ok, OlyKey}    = mountain:put(Pid, Oly),
+        {ok, ChimboKey, Chimbo} = mountain:put(Pid, Chimbo),
+        {ok, OlyKey, Oly}       = mountain:put(Pid, Oly),
         
-        {ok, ChimboKey} = mountain:put_merge(Pid, ChimboKey, ChimboUpdate, [{lake_merge, union}]),
+        {ok, ChimboKey, MergedChimbo} = mountain:put_merge(Pid, ChimboKey, ChimboUpdate, [{lake_merge, union}]),
         
         {ok, Chimbo2} = mountain:get(Pid, ChimboKey),
         {ok, Chimbo2} = mountain:get(Pid, {<<"Chimborazo">>, <<"Cordillera Occidental">>}),
