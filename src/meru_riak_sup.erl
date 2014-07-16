@@ -17,16 +17,29 @@ start_link() ->
 %% supervisor callbacks
 %%
 init([]) ->
-    Host = meru_app:get_env(riak_host, "localhost"),
-    Port = meru_app:get_env(riak_port, 8087),
-    PoolSize = meru_app:get_env(riak_pool_size, 10),
-    PoolMaxOverflow = meru_app:get_env(riak_pool_max_overflow, 20),
-    PoolSpecs = [poolboy:child_spec(meru_riak, [
-            {name, {local, meru_riak}},
+    PoolSpecs = [pool_spec(Riak) || Riak <- meru_app:get_env(riak_pools, default_riak_pools())],
+    {ok, {{one_for_one, 10, 10}, PoolSpecs}}.
+
+pool_spec({Name0, Opts}) ->
+    Name = meru:pool_name(Name0),
+    Host = proplists:get_value(host, Opts, "localhost"),
+    Port = proplists:get_value(port, Opts, 8087),
+    PoolSize = proplists:get_value(pool_size, Opts, 10),
+    PoolMaxOverflow = proplists:get_value(pool_max_overflow, Opts, 20),
+    poolboy:child_spec(Name, [
+            {name, {local, Name}},
             {worker_module, meru_riak},
             {size, PoolSize},
             {max_overflow, PoolMaxOverflow}
         ],
         [Host, Port]
-    )],
-    {ok, {{one_for_one, 10, 10}, PoolSpecs}}.
+    ).
+
+default_riak_pools() ->
+    [
+     {default,
+      [{host, "localhost"},
+      {port, 8087},
+      {pool_size, 10},
+      {pool_max_overflow, 20}]}
+    ].

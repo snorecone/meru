@@ -6,7 +6,7 @@ main([]) ->
     % proplist_to_record/1
     P2R = {proplist_to_record, 1, fun (Proplist) ->
         list_to_tuple(
-            ['___RECORD_NAME___' | 
+            ['___RECORD_NAME___' |
                 lists:reverse(
                     lists:foldl(fun ({K, Default}, Acc) ->
                         [proplists:get_value(K, Proplist, Default) | Acc]
@@ -30,7 +30,7 @@ main([]) ->
 
     % get/1
     Get1 = {get, 1, fun (Key) ->
-        '___RIAK___':transaction(fun (Pid) ->
+        '___RIAK___':transaction('___POOL___', fun (Pid) ->
             get(Pid, Key)
         end)
     end},
@@ -47,7 +47,7 @@ main([]) ->
 
     % put/1
     Put1 = {put, 1, fun (Record) ->
-        '___RIAK___':transaction(fun (Pid) ->
+        '___RIAK___':transaction('___POOL___', fun (Pid) ->
             put(Pid, Record)
         end)
     end},
@@ -55,7 +55,7 @@ main([]) ->
     % put/2
     Put2 = {put, 2, fun (Pid, Record) ->
         Key = '___KEYFUN___'(Record),
-        case '___RIAK___':put(Pid, riakc_obj:new('___BUCKET___', Key, 
+        case '___RIAK___':put(Pid, riakc_obj:new('___BUCKET___', Key,
             term_to_binary(record_to_proplist(Record)))) of
             ok -> {ok, Key, Record};
             Error -> Error
@@ -64,7 +64,7 @@ main([]) ->
 
     % put_merge/2
     PutMerge2 = {put_merge, 2, fun (Record, Options) ->
-        '___RIAK___':transaction(fun (Pid) ->
+        '___RIAK___':transaction('___POOL___', fun (Pid) ->
             put_merge(Pid, Record, Options)
         end)
     end},
@@ -76,7 +76,7 @@ main([]) ->
             _Error -> put(Pid, '___MERGEFUN___'(notfound, Record, Options))
         end;
     (Key, Record, Options) ->
-        '___RIAK___':transaction(fun (Pid) ->
+        '___RIAK___':transaction('___POOL___', fun (Pid) ->
             put_merge(Pid, Key, Record, Options)
         end)
     end},
@@ -91,7 +91,7 @@ main([]) ->
 
     % delete/1
     Delete1 = {delete, 1, fun (Record) ->
-        '___RIAK___':transaction(fun (Pid) ->
+        '___RIAK___':transaction('___POOL___', fun (Pid) ->
             delete(Pid, Record)
         end)
     end},

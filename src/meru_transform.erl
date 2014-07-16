@@ -19,6 +19,7 @@
 -record(state, {
     record,
     records = orddict:new(),
+    pool,
     bucket,
     keyfun,
     mergefun
@@ -39,6 +40,11 @@ parse_transform(Forms, Opts) ->
 
 inspect(attribute, Form, _Context, Acc) ->
     case atom_value(attribute_name(Form)) of
+        meru_pool ->
+            undefined = Acc#state.pool,
+            Pool0 = atom_value(hd(attribute_arguments(Form))),
+            Pool = meru:pool_name(Pool0),
+            {false, Acc#state{ pool = Pool }};
         meru_bucket ->
             undefined = Acc#state.bucket,
             BucketName = parse_trans:revert_form(hd(attribute_arguments(Form))),
@@ -58,7 +64,7 @@ inspect(attribute, Form, _Context, Acc) ->
         record ->
             [Name, {_, _, _, Fields0}] = attribute_arguments(Form),
             Fields = parse_trans:revert_form(list([record_field_name(F) || F <- Fields0])),
-            Values0 = [begin FV = record_field_value(F), 
+            Values0 = [begin FV = record_field_value(F),
                 if FV == none -> {atom, 1, undefined}; true -> FV end end || F <- Fields0],
             Values = parse_trans:revert_form(list(Values0)),
             {false, Acc#state{ records = orddict:store(atom_value(Name), {Fields, Values}, Acc#state.records) }};
@@ -73,14 +79,15 @@ add_funs(Forms, State, Context) ->
         add_fun(FunName, Acc, State, Context)
     end, Forms, ?FUNS).
 
-add_fun({get, 1}, Forms, _State, Context) ->
+add_fun({get, 1}, Forms, #state{ pool = Pool }, Context) ->
     Form = [{function,1,get,1,
      [{clause,32,
           [{var,32,'Key'}],
           [],
           [{call,33,
                {remote,33,{atom,33,?RIAK},{atom,33,transaction}},
-               [{'fun',33,
+               [{atom,33,Pool},
+                {'fun',33,
                     {clauses,
                         [{clause,33,
                              [{var,33,'Pid'}],
@@ -114,14 +121,15 @@ add_fun({get, 2}, Forms, #state{ bucket = BucketName, keyfun = KeyFunName }, Con
                 [{var,42,'RObj'}]}]}]}]}]},
        {clause,43,[{var,43,'Error'}],[],[{var,44,'Error'}]}]}]}]}],
     parse_trans:do_insert_forms(above, Form, Forms, Context);
-add_fun({put, 1}, Forms, _State, Context) ->
+add_fun({put, 1}, Forms, #state{ pool = Pool }, Context) ->
     Form = [{function,1,put,1,
      [{clause,49,
           [{var,49,'Record'}],
           [],
           [{call,50,
                {remote,50,{atom,50,?RIAK},{atom,50,transaction}},
-               [{'fun',50,
+               [{atom,50,Pool},
+                {'fun',50,
                     {clauses,
                         [{clause,50,
                              [{var,50,'Pid'}],
@@ -159,14 +167,15 @@ add_fun({put, 2}, Forms, #state{ bucket = BucketName, keyfun = KeyFunName }, Con
                          [{atom,60,ok},{var,60,'Key'},{var,60,'Record'}]}]},
                 {clause,61,[{var,61,'Error'}],[],[{var,61,'Error'}]}]}]}]}],
     parse_trans:do_insert_forms(above, Form, Forms, Context);
-add_fun({put_merge, 2}, Forms, _State, Context) ->
+add_fun({put_merge, 2}, Forms, #state{ pool = Pool }, Context) ->
     Form = [{function,1,put_merge,2,
      [{clause,66,
           [{var,66,'Record'},{var,66,'Options'}],
           [],
           [{call,67,
                {remote,67,{atom,67,?RIAK},{atom,67,transaction}},
-               [{'fun',67,
+               [{atom,67,Pool},
+                {'fun',67,
                     {clauses,
                         [{clause,67,
                              [{var,67,'Pid'}],
@@ -177,7 +186,7 @@ add_fun({put_merge, 2}, Forms, _State, Context) ->
                                    {var,68,'Record'},
                                    {var,68,'Options'}]}]}]}}]}]}]}],
     parse_trans:do_insert_forms(above, Form, Forms, Context);
-add_fun({put_merge, 3}, Forms, #state{ mergefun = MergeFunName }, Context) ->
+add_fun({put_merge, 3}, Forms, #state{ mergefun = MergeFunName, pool = Pool }, Context) ->
     Form = [{function,1,put_merge,3,
      [{clause,73,
           [{var,73,'Pid'},{var,73,'Record'},{var,73,'Options'}],
@@ -211,7 +220,8 @@ add_fun({put_merge, 3}, Forms, #state{ mergefun = MergeFunName }, Context) ->
           [],
           [{call,79,
                {remote,79,{atom,79,?RIAK},{atom,79,transaction}},
-               [{'fun',79,
+               [{atom,79,Pool},
+                {'fun',79,
                     {clauses,
                         [{clause,79,
                              [{var,79,'Pid'}],
@@ -253,14 +263,15 @@ add_fun({put_merge, 4}, Forms, #state{ mergefun = MergeFunName }, Context) ->
                                {var,88,'Record'},
                                {var,88,'Options'}]}]}]}]}]}]}],
     parse_trans:do_insert_forms(above, Form, Forms, Context);
-add_fun({delete, 1}, Forms, _State, Context) ->
+add_fun({delete, 1}, Forms, #state{ pool = Pool }, Context) ->
     Form = [{function,1,delete,1,
      [{clause,93,
           [{var,93,'Record'}],
           [],
           [{call,94,
                {remote,94,{atom,94,?RIAK},{atom,94,transaction}},
-               [{'fun',94,
+               [{atom,94,Pool},
+                {'fun',94,
                     {clauses,
                         [{clause,94,
                              [{var,94,'Pid'}],

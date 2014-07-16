@@ -1,6 +1,7 @@
 -module(mountain).
 -compile({parse_transform, meru_transform}).
 
+-meru_pool(default).
 -meru_bucket(<<"mountains">>).
 -meru_record(mountain).
 -meru_keyfun(make_key).
@@ -38,23 +39,23 @@ test() ->
         height = 21171,
         type   = <<"volcano">>
     },
-    
+
     % put our mountains in the store
     {ok, ChimboKey, Chimbo} = mountain:put(Chimbo),
     {ok, OlyKey, Oly}       = mountain:put(Oly),
-    
+
     % update chimborazo
     ChimboUpdate = #mountain{
         lakes = [<<"Rio Chambo Dam">>]
     },
-    {ok, ChimboKey, MergedChimbo} = mountain:put_merge(ChimboKey, ChimboUpdate, [{lake_merge, union}]),
-    
+    {ok, ChimboKey, _MergedChimbo} = mountain:put_merge(ChimboKey, ChimboUpdate, [{lake_merge, union}]),
+
     % get the mountains out by key or tuple
     {ok, Chimbo2} = mountain:get(ChimboKey),
     {ok, Chimbo2} = mountain:get({<<"Chimborazo">>, <<"Cordillera Occidental">>}),
     {ok, Oly} = mountain:get(OlyKey),
     {ok, Oly} = mountain:get({<<"Olympus Mons">>, <<"Amazonis">>}),
-    
+
     % deleting a deleted record should return not found
     {ok, ChimboKey} = mountain:delete({<<"Chimborazo">>, <<"Cordillera Occidental">>}),
     {ok, ChimboKey} = mountain:delete(ChimboKey),
@@ -73,9 +74,9 @@ merge(notfound, NewMountain, _) ->
     NewMountain;
 merge(OldMountain, NewMountain, MergeOpts) ->
     Lakes = case proplists:get_value(lake_merge, MergeOpts) of
-        overwrite -> 
+        overwrite ->
             NewMountain#mountain.lakes;
-        union -> 
+        union ->
             lists:usort(OldMountain#mountain.lakes ++ NewMountain#mountain.lakes)
     end,
     OldMountain#mountain{
@@ -83,4 +84,3 @@ merge(OldMountain, NewMountain, MergeOpts) ->
         updated_at = calendar:universal_time()
     }.
 
-    
