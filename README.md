@@ -50,9 +50,10 @@ merge(OldUser, NewUser, Options) ->
   }.
 ```
 
-Set the module attributes for riak bucket, record name, key function, and merge function:
+Set the module attributes for riak pool, riak bucket, record name, key function, and merge function:
 
 ```erlang
+-meru_pool(default).
 -meru_bucket(<<"users">>).
 -meru_record(user).
 -meru_keyfun(make_key).
@@ -87,26 +88,47 @@ Record    = ?MODULE:proplist_to_record(Proplist)
 
 See the [examples directory](https://github.com/assplecake/meru/tree/master/examples) for complete examples.
 
+## migrations
+You can have meru passively migrate your data from one pool/bucket to another pool/bucket. To enable, add the migration module attribute with `{OldPool, OldBucket, MigrateFun}`. The new pool and bucket are just specified as the regular `meru_pool` and `meru_bucket` attributes:
+
+```erlang
+-meru_pool(default).
+-meru_bucket(<<"users">>).
+-meru_record(user).
+-meru_keyfun(make_key).
+-meru_mergefun(merge).
+-meru_migration({legacy_default, <<"legacyusers">>, migrate}).
+```
+
+You'll then need to export a migrate function that receives a record and must return a record. It's called when the data is first migrated:
+
+```erlang
+migrate(User) ->
+    User#user{ migrated = true }.
+```
+
+Migration happens when a `get` operation returns `not_found` for the new pool/bucket. There will definitely be a performance impact by enabling a migration, especially when a record is not found in either pool/bucket pair, since the migration will continue to check both. Use it sparingly.
+
 ## helper modules
 
 ### meru_riak
 
-`meru_riak` takes the same commands as riak protobuffs client `riakc_pb_socket`, but doesn't require obtaining a pid, it uses a connection from the meru pool.
+`meru_riak` takes the same commands as riak protobuffs client `riakc_pb_socket`, but doesn't require obtaining a pid. You must however specify a pool from which to obtain the pid.
 
 ```erlang
-{ok, RiakObject} = meru_riak:get(Bucket, Key).
+{ok, RiakObject} = meru_riak:get(meru_riak_pool_default, Bucket, Key).
 ```
 
 Note: only the most used functions (`get`, `put`, `delete`, `mapred`) are exported for now with the default timeouts. Use `call/2` to call a `riakc_pb_socket` function directly:
 
 ```erlang
-{ok, Keys} = meru_riak:call(list_keys, [Bucket, Timeout]).
+{ok, Keys} = meru_riak:call(meru_riak_pool_default, list_keys, [Bucket, Timeout]).
 ```
 
 There's also a transaction function to obtain a pid for multiple operations:
 
 ```erlang
-meru_riak:transaction(fun (Pid) ->
+meru_riak:transaction(meru_riak_pool_default, fun (Pid) ->
   meru_riak:get(Pid, Bucket, Key),
   meru_riak:call(Pid, list_keys, [Bucket])
 end).
