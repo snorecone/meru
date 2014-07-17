@@ -21,12 +21,19 @@
     records = orddict:new(),
     pool,
     bucket,
+    old_pool,
+    old_bucket,
     keyfun,
-    mergefun
+    mergefun,
+    migratefun
 }).
 
 -define(RIAK, meru_riak).
--define(FUNS, [{record_to_proplist, 1}, {proplist_to_record, 1}, {new, 0}, {new, 1}, {get, 1}, {get, 2}, {put, 1}, {put, 2}, {put_merge, 2}, {put_merge, 3}, {put_merge, 4}, {delete, 1}, {delete, 2}]).
+-define(_FUNS, [{record_to_proplist, 1}, {proplist_to_record, 1}, {new, 0}, {new, 1},
+                {put, 1}, {put, 2}, {delete, 1}, {delete, 2}]).
+-define(FUNS, [{get, 1}, {get, 2}, {put_merge, 2}, {put_merge, 3}, {put_merge, 4} | ?_FUNS]).
+-define(MIGRATE_FUNS, [{migrate_get, 1}, {migrate_get, 3}, {migrate_put_merge, 2},
+                       {migrate_put_merge, 3}, {migrate_put_merge, 4}, {migrate_put_merge, 5} | ?_FUNS]).
 
 parse_transform(Forms, Opts) ->
     % dbg:tracer(),
@@ -40,6 +47,10 @@ parse_transform(Forms, Opts) ->
 
 inspect(attribute, Form, _Context, Acc) ->
     case atom_value(attribute_name(Form)) of
+        meru_migration ->
+            {undefined, undefined, undefined} = {Acc#state.old_pool, Acc#state.old_bucket, Acc#state.migratefun},
+            [OldPool, OldBucket, MigrateFunName] = tuple_elements(hd(attribute_arguments(Form))),
+            {false, Acc#state{ old_pool = meru:pool_name(atom_value(OldPool)), old_bucket = parse_trans:revert_form(OldBucket), migratefun = atom_value(MigrateFunName) }};
         meru_pool ->
             undefined = Acc#state.pool,
             Pool0 = atom_value(hd(attribute_arguments(Form))),
@@ -74,11 +85,87 @@ inspect(attribute, Form, _Context, Acc) ->
 inspect(_, _, _, Acc) ->
     {false, Acc}.
 
+add_funs(Forms, #state{ old_bucket = undefined, old_pool = undefined } = State, Context) ->
+    do_add_funs(?FUNS, Forms, State, Context);
 add_funs(Forms, State, Context) ->
+    do_add_funs(?MIGRATE_FUNS, Forms, State, Context).
+
+do_add_funs(Funs, Forms, State, Context) ->
     lists:foldl(fun (FunName, Acc) ->
         add_fun(FunName, Acc, State, Context)
-    end, Forms, ?FUNS).
+    end, Forms, Funs).
 
+add_fun({migrate_get, 1}, Forms, #state{ pool = Pool, old_pool = OldPool }, Context) ->
+    Form = [{function,1,get,1,
+     [{clause,32,
+          [{var,32,'Key'}],
+          [],
+          [{call,33,
+               {remote,33,{atom,33,?RIAK},{atom,33,multi_transaction}},
+               [{atom,33,OldPool},
+                {atom,33,Pool},
+                {'fun',33,
+                    {clauses,
+                        [{clause,33,
+                             [{var,33,'OldPid'},{var,33,'Pid'}],
+                             [],
+                             [{call,34,
+                                  {atom,34,get},
+                                  [{var,34,'OldPid'},
+                                   {var,34,'Pid'},
+                                   {var,34,'Key'}]}]}]}}]}]}]}],
+    parse_trans:do_insert_forms(above, Form, Forms, Context);
+add_fun({migrate_get, 3}, Forms, #state{ bucket = BucketName, old_bucket = OldBucketName, keyfun = KeyFunName, migratefun = MigrateFunName }, Context) ->
+    Form = [{function,1,get,3,
+  [{clause,39,
+    [{var,39,'OldPid'},{var,39,'Pid'},{var,39,'Key'}],
+    [],
+    [{'case',40,
+      {call,40,
+       {remote,40,{atom,40,?RIAK},{atom,40,get}},
+       [{var,40,'Pid'},
+        BucketName,
+        {call,40,{atom,40,KeyFunName},[{var,40,'Key'}]}]},
+      [{clause,41,
+        [{tuple,41,[{atom,41,ok},{var,41,'RObj'}]}],
+        [],
+        [{tuple,42,
+          [{atom,42,ok},
+           {call,42,
+            {atom,42,proplist_to_record},
+            [{call,42,
+              {atom,42,binary_to_term},
+              [{call,42,
+                {remote,42,{atom,42,riakc_obj},{atom,42,get_value}},
+                [{var,42,'RObj'}]}]}]}]}]},
+       {clause,43,
+        [{tuple,43,[{atom,43,error},{atom,43,notfound}]}],
+        [],
+        [{'case',44,
+          {call,44,
+           {remote,44,{atom,44,?RIAK},{atom,44,get}},
+           [{var,44,'OldPid'},
+            OldBucketName,
+            {call,44,{atom,44,KeyFunName},[{var,44,'Key'}]}]},
+          [{clause,45,
+            [{tuple,45,[{atom,45,ok},{var,45,'OldRObj'}]}],
+            [],
+            [{match,46,
+              {var,46,'Rec'},
+              {call,46,
+               {atom,46,MigrateFunName},
+               [{call,46,
+                 {atom,46,proplist_to_record},
+                 [{call,46,
+                   {atom,46,binary_to_term},
+                   [{call,46,
+                     {remote,46,{atom,46,riakc_obj},{atom,46,get_value}},
+                     [{var,46,'OldRObj'}]}]}]}]}},
+             {call,47,{atom,47,put},[{var,47,'Pid'},{var,47,'Rec'}]},
+             {tuple,48,[{atom,48,ok},{var,48,'Rec'}]}]},
+           {clause,49,[{var,49,'OldError'}],[],[{var,50,'OldError'}]}]}]},
+       {clause,52,[{var,52,'Error'}],[],[{var,53,'Error'}]}]}]}]}],
+    parse_trans:do_insert_forms(above, Form, Forms, Context);
 add_fun({get, 1}, Forms, #state{ pool = Pool }, Context) ->
     Form = [{function,1,get,1,
      [{clause,32,
@@ -263,6 +350,126 @@ add_fun({put_merge, 4}, Forms, #state{ mergefun = MergeFunName }, Context) ->
                                {var,88,'Record'},
                                {var,88,'Options'}]}]}]}]}]}]}],
     parse_trans:do_insert_forms(above, Form, Forms, Context);
+add_fun({migrate_put_merge, 2}, Forms, #state{ pool = Pool, old_pool = OldPool }, Context) ->
+    Form = [{function,1,put_merge,2,
+     [{clause,119,
+          [{var,119,'Record'},{var,119,'Options'}],
+          [],
+          [{call,120,
+               {remote,120,
+                   {atom,120,?RIAK},
+                   {atom,120,multi_transaction}},
+               [{atom,120,OldPool},
+                {atom,120,Pool},
+                {'fun',120,
+                    {clauses,
+                        [{clause,120,
+                             [{var,120,'OldPid'},{var,120,'Pid'}],
+                             [],
+                             [{call,121,
+                                  {atom,121,put_merge},
+                                  [{var,121,'OldPid'},
+                                   {var,121,'Pid'},
+                                   {var,121,'Record'},
+                                   {var,121,'Options'}]}]}]}}]}]}]}],
+    parse_trans:do_insert_forms(above, Form, Forms, Context);
+add_fun({migrate_put_merge, 3}, Forms, #state{ pool = Pool, old_pool = OldPool }, Context) ->
+    Form = [{function,1,put_merge,3,
+     [{clause,126,
+          [{var,126,'Key'},{var,126,'Record'},{var,126,'Options'}],
+          [],
+          [{call,127,
+               {remote,127,
+                   {atom,127,?RIAK},
+                   {atom,127,multi_transaction}},
+               [{atom,127,OldPool},
+                {atom,127,Pool},
+                {'fun',127,
+                    {clauses,
+                        [{clause,127,
+                             [{var,127,'OldPid'},{var,127,'Pid'}],
+                             [],
+                             [{call,128,
+                                  {atom,128,put_merge},
+                                  [{var,128,'OldPid'},
+                                   {var,128,'Pid'},
+                                   {var,128,'Key'},
+                                   {var,128,'Record'},
+                                   {var,128,'Options'}]}]}]}}]}]}]}],
+    parse_trans:do_insert_forms(above, Form, Forms, Context);
+add_fun({migrate_put_merge, 4}, Forms, #state{ mergefun = MergeFunName }, Context) ->
+    Form = [{function,1,put_merge,4,
+     [{clause,133,
+          [{var,133,'OldPid'},
+           {var,133,'Pid'},
+           {var,133,'Record'},
+           {var,133,'Options'}],
+          [[{op,133,'andalso',
+                {call,133,{atom,133,is_pid},[{var,133,'OldPid'}]},
+                {call,133,{atom,133,is_pid},[{var,133,'Pid'}]}}]],
+          [{'case',134,
+               {call,134,
+                   {atom,134,get},
+                   [{var,134,'OldPid'},{var,134,'Pid'},{var,134,'Record'}]},
+               [{clause,135,
+                    [{tuple,135,[{atom,135,ok},{var,135,'OldRecord'}]}],
+                    [],
+                    [{call,135,
+                         {atom,135,put},
+                         [{var,135,'Pid'},
+                          {call,135,
+                              {atom,135,MergeFunName},
+                              [{var,135,'OldRecord'},
+                               {var,135,'Record'},
+                               {var,135,'Options'}]}]}]},
+                {clause,136,
+                    [{var,136,'_Error'}],
+                    [],
+                    [{call,136,
+                         {atom,136,put},
+                         [{var,136,'Pid'},
+                          {call,136,
+                              {atom,136,MergeFunName},
+                              [{atom,136,notfound},
+                               {var,136,'Record'},
+                               {var,136,'Options'}]}]}]}]}]}]}],
+    parse_trans:do_insert_forms(above, Form, Forms, Context);
+add_fun({migrate_put_merge, 5}, Forms, #state{ mergefun = MergeFunName }, Context) ->
+    Form = [{function,1,put_merge,5,
+     [{clause,141,
+          [{var,141,'OldPid'},
+           {var,141,'Pid'},
+           {var,141,'Key'},
+           {var,141,'Record'},
+           {var,141,'Options'}],
+          [],
+          [{'case',142,
+               {call,142,
+                   {atom,142,get},
+                   [{var,142,'OldPid'},{var,142,'Pid'},{var,142,'Key'}]},
+               [{clause,143,
+                    [{tuple,143,[{atom,143,ok},{var,143,'OldRecord'}]}],
+                    [],
+                    [{call,143,
+                         {atom,143,put},
+                         [{var,143,'Pid'},
+                          {call,143,
+                              {atom,143,MergeFunName},
+                              [{var,143,'OldRecord'},
+                               {var,143,'Record'},
+                               {var,143,'Options'}]}]}]},
+                {clause,144,
+                    [{var,144,'_Error'}],
+                    [],
+                    [{call,144,
+                         {atom,144,put},
+                         [{var,144,'Pid'},
+                          {call,144,
+                              {atom,144,MergeFunName},
+                              [{atom,144,notfound},
+                               {var,144,'Record'},
+                               {var,144,'Options'}]}]}]}]}]}]}],
+    parse_trans:do_insert_forms(above, Form, Forms, Context);
 add_fun({delete, 1}, Forms, #state{ pool = Pool }, Context) ->
     Form = [{function,1,delete,1,
      [{clause,93,
@@ -359,8 +566,18 @@ add_fun({new, 1}, Forms, _State, Context) ->
                            [{var,28,'Proplist'}]}]}]}],
     parse_trans:do_insert_forms(above, Form, Forms, Context).
 
-export_funs(Forms, _State, Context) ->
+export_funs(Forms, #state{ old_pool = undefined, old_bucket = undefined }, Context) ->
     Exports = [{attribute, 1, export, ?FUNS}],
+    parse_trans:do_insert_forms(above, Exports, Forms, Context);
+export_funs(Forms, _State, Context) ->
+    MigrateFuns = lists:map(fun (F) ->
+                                    case F of
+                                        {migrate_get, A}       -> {get, A};
+                                        {migrate_put_merge, A} -> {put_merge, A};
+                                        O                      -> O
+                                    end
+                            end, ?MIGRATE_FUNS),
+    Exports = [{attribute, 1, export, MigrateFuns}],
     parse_trans:do_insert_forms(above, Exports, Forms, Context).
 
 no_auto_import(Forms, Context) ->

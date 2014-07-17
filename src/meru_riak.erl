@@ -8,7 +8,8 @@
     delete/3,
     mapred/3,
     call/3,
-    transaction/2
+    transaction/2,
+    multi_transaction/3
 ]).
 
 %%
@@ -44,6 +45,11 @@ call(Pid, Method, Args) when is_pid(Pid) ->
 
 transaction(Pool, Fun) ->
     poolboy:transaction(Pool, Fun).
+
+multi_transaction(Pool1, Pool2, Fun) ->
+    poolboy:transaction(Pool1, fun (Pid1) ->
+                                       poolboy:transaction(Pool2, fun (Pid2) ->
+                                                                          Fun(Pid1, Pid2) end) end).
 
 %%
 %% private
